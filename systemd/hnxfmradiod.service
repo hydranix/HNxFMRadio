@@ -1,6 +1,6 @@
 [Unit]
 Description=HNx FM Radio Daemon
-Documentation=https://github.com/yourname/HNxFMRadio
+Documentation=https://github.com/hydranix/HNxFMRadio
 After=network.target sound.target
 
 [Service]

@@ -1,0 +1,20 @@
+[Unit]
+Description=HNx FM Radio Daemon
+Documentation=https://github.com/yourname/HNxFMRadio
+After=network.target sound.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/hnxfmradiod -c /etc/hnxfmradio.conf
+Restart=on-failure
+RestartSec=5s
+# Give the process enough time to clean up child processes on stop
+TimeoutStopSec=10s
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=hnxfmradiod
+# fm_transmitter requires access to /dev/mem (GPIO/PWM); run as root or
+# use capabilities: AmbientCapabilities=CAP_SYS_RAWIO CAP_NET_BIND_SERVICE
+
+[Install]
+WantedBy=multi-user.target

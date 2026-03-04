@@ -3,16 +3,15 @@
 #include <shared_mutex>
 
 struct RadioConfig {
-    double      frequency   = 100.6;
-    int         gain        = 0;
+    double      frequency = 106.1;
     int         sample_rate = 22050;
-    int         channels    = 1;
-    int         http_port   = 8080;
-    int         audio_port  = 8081;
+    int         channels = 1;
+    int         http_port = 8080;
+    int         audio_port = 8081;
     std::string fm_transmitter_path = "/usr/local/bin/fm_transmitter";
-    std::string arecord_path        = "/usr/bin/arecord";
-    std::string ffmpeg_path         = "/usr/bin/ffmpeg";
-    std::string loopback_device     = "hw:Loopback";
+    std::string arecord_path = "/usr/bin/arecord";
+    std::string ffmpeg_path = "/usr/bin/ffmpeg";
+    std::string loopback_device = "hw:Loopback";
 };
 
 class Config {

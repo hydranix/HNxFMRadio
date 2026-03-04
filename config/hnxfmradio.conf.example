@@ -7,8 +7,6 @@
 [radio]
 ; FM broadcast frequency in MHz (87.5 – 108.0)
 frequency=100.6
-; Transmitter gain (0 = use fm_transmitter default/automatic)
-gain=0
 
 [audio]
 ; PCM sample rate in Hz (fm_transmitter works best at 22050)

@@ -12,38 +12,44 @@
 #include <string>
 #include <unistd.h>
 
-static std::atomic<bool> g_shutdown{false};
+static std::atomic<bool> g_shutdown{ false };
 
-static void signalHandler(int) {
+static void signalHandler(int)
+{
     g_shutdown = true;
 }
 
-static void printUsage(const char* prog) {
+static void printUsage(const char* prog)
+{
     std::cout << "Usage: " << prog << " [-c /path/to/config.conf]\n"
-              << "  -c  Config file path (default: /etc/hnxfmradio.conf)\n"
-              << "  -h  Show this help\n";
+        << "  -c  Config file path (default: /etc/hnxfmradio.conf)\n"
+        << "  -h  Show this help\n";
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[])
+{
     std::string configPath = "/etc/hnxfmradio.conf";
 
     int opt;
-    while ((opt = getopt(argc, argv, "c:h")) != -1) {
-        switch (opt) {
-            case 'c': configPath = optarg; break;
-            case 'h': printUsage(argv[0]); return 0;
-            default:  printUsage(argv[0]); return 1;
+    while ((opt = getopt(argc, argv, "c:h")) != -1)
+    {
+        switch (opt)
+        {
+        case 'c': configPath = optarg; break;
+        case 'h': printUsage(argv[0]); return 0;
+        default:  printUsage(argv[0]); return 1;
         }
     }
 
     // Signal handling
     signal(SIGTERM, signalHandler);
-    signal(SIGINT,  signalHandler);
+    signal(SIGINT, signalHandler);
     signal(SIGPIPE, SIG_IGN); // Ignore broken pipe from child processes
 
     // ---------- Config ----------
     auto& cfg = Config::instance();
-    if (!cfg.load(configPath)) {
+    if (!cfg.load(configPath))
+    {
         std::cerr << "Failed to load/create config at " << configPath << "\n";
         return 1;
     }
@@ -56,7 +62,8 @@ int main(int argc, char* argv[]) {
 
     // ---------- Audio Loopback ----------
     AudioLoopback loopback;
-    if (!loopback.start(rc.loopback_device, rc.sample_rate, rc.channels)) {
+    if (!loopback.start(rc.loopback_device, rc.sample_rate, rc.channels))
+    {
         Logger::error("Failed to start AudioLoopback — aborting");
         return 1;
     }
@@ -67,7 +74,6 @@ int main(int argc, char* argv[]) {
                   rc.arecord_path,
                   rc.loopback_device,
                   rc.frequency,
-                  rc.gain,
                   rc.sample_rate,
                   rc.channels))
     {
@@ -78,7 +84,8 @@ int main(int argc, char* argv[]) {
 
     // ---------- Audio Injector ----------
     AudioInjector injector(loopback);
-    if (!injector.start(rc.ffmpeg_path, rc.audio_port, rc.sample_rate, rc.channels)) {
+    if (!injector.start(rc.ffmpeg_path, rc.audio_port, rc.sample_rate, rc.channels))
+    {
         Logger::error("Failed to start AudioInjector — aborting");
         fm.stop();
         loopback.stop();
@@ -87,7 +94,8 @@ int main(int argc, char* argv[]) {
 
     // ---------- HTTP Server ----------
     HttpServer http(cfg, fm);
-    if (!http.start(rc.http_port)) {
+    if (!http.start(rc.http_port))
+    {
         Logger::error("Failed to start HttpServer — aborting");
         injector.stop();
         fm.stop();
@@ -100,7 +108,8 @@ int main(int argc, char* argv[]) {
                  " | Audio :" + std::to_string(rc.audio_port));
 
     // ---------- Main loop: wait for shutdown signal ----------
-    while (!g_shutdown) {
+    while (!g_shutdown)
+    {
         pause();
     }
 

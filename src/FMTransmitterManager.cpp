@@ -13,7 +13,8 @@
 // Lifecycle
 // ---------------------------------------------------------------------------
 
-FMTransmitterManager::~FMTransmitterManager() {
+FMTransmitterManager::~FMTransmitterManager()
+{
     stop();
 }
 
@@ -21,27 +22,26 @@ bool FMTransmitterManager::start(const std::string& fmPath,
                                   const std::string& arecordPath,
                                   const std::string& loopbackDevice,
                                   double frequency,
-                                  int    gain,
                                   int    sampleRate,
                                   int    channels)
 {
-    fmPath_         = fmPath;
-    arecordPath_    = arecordPath;
+    fmPath_ = fmPath;
+    arecordPath_ = arecordPath;
     loopbackDevice_ = loopbackDevice;
-    frequency_      = frequency;
-    gain_           = gain;
-    sampleRate_     = sampleRate;
-    channels_       = channels;
+    frequency_ = frequency;
+    sampleRate_ = sampleRate;
+    channels_ = channels;
 
     running_ = true;
     launchPipeline();
 
     timerThread_ = std::thread(&FMTransmitterManager::restartTimerThread, this);
-    watchThread_ = std::thread(&FMTransmitterManager::watcherThread,      this);
+    watchThread_ = std::thread(&FMTransmitterManager::watcherThread, this);
     return true;
 }
 
-void FMTransmitterManager::stop() {
+void FMTransmitterManager::stop()
+{
     running_ = false;
     cv_.notify_all();
 
@@ -51,10 +51,10 @@ void FMTransmitterManager::stop() {
     killPipeline();
 }
 
-void FMTransmitterManager::restart(double frequency, int gain) {
+void FMTransmitterManager::restart(double frequency)
+{
     std::lock_guard<std::mutex> lk(mutex_);
     frequency_ = frequency;
-    gain_      = gain;
     killPipeline();
     launchPipeline();
 }
@@ -63,22 +63,26 @@ void FMTransmitterManager::restart(double frequency, int gain) {
 // Private helpers
 // ---------------------------------------------------------------------------
 
-void FMTransmitterManager::launchPipeline() {
-    // Create a pipe: arecord writes to pipefd_[1], fm_transmitter reads from pipefd_[0]
-    if (pipe(pipefd_) < 0) {
+void FMTransmitterManager::launchPipeline()
+{
+// Create a pipe: arecord writes to pipefd_[1], fm_transmitter reads from pipefd_[0]
+    if (pipe(pipefd_) < 0)
+    {
         Logger::error("pipe() failed: " + std::string(strerror(errno)));
         return;
     }
 
     // --- Fork arecord ---
     arecordPid_ = fork();
-    if (arecordPid_ < 0) {
+    if (arecordPid_ < 0)
+    {
         Logger::error("fork(arecord) failed: " + std::string(strerror(errno)));
         return;
     }
-    if (arecordPid_ == 0) {
-        // Child: arecord
-        // stdout → pipe write end
+    if (arecordPid_ == 0)
+    {
+// Child: arecord
+// stdout → pipe write end
         dup2(pipefd_[1], STDOUT_FILENO);
         close(pipefd_[0]);
         close(pipefd_[1]);
@@ -102,12 +106,14 @@ void FMTransmitterManager::launchPipeline() {
 
     // --- Fork fm_transmitter ---
     fmPid_ = fork();
-    if (fmPid_ < 0) {
+    if (fmPid_ < 0)
+    {
         Logger::error("fork(fm_transmitter) failed: " + std::string(strerror(errno)));
         return;
     }
-    if (fmPid_ == 0) {
-        // Child: fm_transmitter reads from pipe read end
+    if (fmPid_ == 0)
+    {
+// Child: fm_transmitter reads from pipe read end
         dup2(pipefd_[0], STDIN_FILENO);
         close(pipefd_[0]);
         close(pipefd_[1]);
@@ -115,17 +121,15 @@ void FMTransmitterManager::launchPipeline() {
         std::string freqStr = std::to_string(frequency_);
         // Trim trailing zeros from frequency string for cleanliness
         auto dot = freqStr.find('.');
-        if (dot != std::string::npos) {
+        if (dot != std::string::npos)
+        {
             freqStr.erase(freqStr.find_last_not_of('0') + 1);
             if (freqStr.back() == '.') freqStr.pop_back();
         }
 
-        std::string gainStr = std::to_string(gain_);
-
         const char* argv[] = {
             fmPath_.c_str(),
             "-f", freqStr.c_str(),
-            "-g", gainStr.c_str(),
             "-",         // read from stdin
             nullptr
         };
@@ -142,32 +146,38 @@ void FMTransmitterManager::launchPipeline() {
                  ", freq=" + std::to_string(frequency_) + " MHz)");
 }
 
-void FMTransmitterManager::killPipeline() {
-    auto killAndWait = [](pid_t& pid) {
-        if (pid > 0) {
-            kill(pid, SIGTERM);
-            // Give it 2 seconds then SIGKILL
-            std::this_thread::sleep_for(std::chrono::seconds(2));
-            if (waitpid(pid, nullptr, WNOHANG) == 0)
-                kill(pid, SIGKILL);
-            waitpid(pid, nullptr, 0);
-            pid = -1;
-        }
-    };
+void FMTransmitterManager::killPipeline()
+{
+    auto killAndWait = [](pid_t& pid)
+        {
+            if (pid > 0)
+            {
+                kill(pid, SIGTERM);
+                // Give it 2 seconds then SIGKILL
+                std::this_thread::sleep_for(std::chrono::seconds(2));
+                if (waitpid(pid, nullptr, WNOHANG) == 0)
+                    kill(pid, SIGKILL);
+                waitpid(pid, nullptr, 0);
+                pid = -1;
+            }
+        };
     killAndWait(fmPid_);
     killAndWait(arecordPid_);
 
-    for (int& fd : pipefd_) {
+    for (int& fd : pipefd_)
+    {
         if (fd >= 0) { close(fd); fd = -1; }
     }
     Logger::info("FM pipeline stopped");
 }
 
-void FMTransmitterManager::restartTimerThread() {
-    while (running_) {
-        // Wait 30 minutes (or until stopped)
+void FMTransmitterManager::restartTimerThread()
+{
+    while (running_)
+    {
+// Wait 30 minutes (or until stopped)
         std::unique_lock<std::mutex> lk(mutex_);
-        cv_.wait_for(lk, std::chrono::minutes(30), [this]{ return !running_; });
+        cv_.wait_for(lk, std::chrono::minutes(30), [this] { return !running_; });
         if (!running_) break;
 
         Logger::info("30-minute restart: cycling fm_transmitter pipeline");
@@ -176,31 +186,38 @@ void FMTransmitterManager::restartTimerThread() {
     }
 }
 
-void FMTransmitterManager::watcherThread() {
-    while (running_) {
+void FMTransmitterManager::watcherThread()
+{
+    while (running_)
+    {
         std::this_thread::sleep_for(std::chrono::seconds(5));
         if (!running_) break;
 
         bool needRestart = false;
-        if (fmPid_ > 0) {
+        if (fmPid_ > 0)
+        {
             int status = 0;
-            pid_t ret  = waitpid(fmPid_, &status, WNOHANG);
-            if (ret == fmPid_) {
+            pid_t ret = waitpid(fmPid_, &status, WNOHANG);
+            if (ret == fmPid_)
+            {
                 Logger::warn("fm_transmitter exited unexpectedly, restarting pipeline");
-                fmPid_      = -1;
+                fmPid_ = -1;
                 needRestart = true;
             }
         }
-        if (arecordPid_ > 0) {
+        if (arecordPid_ > 0)
+        {
             int status = 0;
-            pid_t ret  = waitpid(arecordPid_, &status, WNOHANG);
-            if (ret == arecordPid_) {
+            pid_t ret = waitpid(arecordPid_, &status, WNOHANG);
+            if (ret == arecordPid_)
+            {
                 Logger::warn("arecord exited unexpectedly, restarting pipeline");
                 arecordPid_ = -1;
                 needRestart = true;
             }
         }
-        if (needRestart && running_) {
+        if (needRestart && running_)
+        {
             std::lock_guard<std::mutex> lk(mutex_);
             killPipeline();
             launchPipeline();

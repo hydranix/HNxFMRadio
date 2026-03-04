@@ -15,13 +15,12 @@ public:
                const std::string& arecordPath,
                const std::string& loopbackDevice,
                double frequency,
-               int    gain,
                int    sampleRate,
                int    channels);
     void stop();
 
-    // Restart the pipeline with new frequency/gain (e.g. after config change)
-    void restart(double frequency, int gain);
+    // Restart the pipeline with new frequency (e.g. after config change)
+    void restart(double frequency);
 
     bool isRunning() const { return running_; }
 
@@ -34,17 +33,16 @@ private:
     std::string fmPath_;
     std::string arecordPath_;
     std::string loopbackDevice_;
-    double      frequency_  = 100.6;
-    int         gain_       = 0;
+    double      frequency_ = 100.6;
     int         sampleRate_ = 22050;
-    int         channels_   = 1;
+    int         channels_ = 1;
 
     // PIDs of spawned processes
     pid_t arecordPid_ = -1;
-    pid_t fmPid_      = -1;
-    int   pipefd_[2]  = {-1, -1}; // arecord→fm_transmitter pipe
+    pid_t fmPid_ = -1;
+    int   pipefd_[2] = { -1, -1 }; // arecord→fm_transmitter pipe
 
-    std::atomic<bool> running_{false};
+    std::atomic<bool> running_{ false };
     std::mutex        mutex_;
     std::condition_variable cv_;
 

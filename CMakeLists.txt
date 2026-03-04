@@ -17,16 +17,11 @@ find_package(ALSA REQUIRED)
 include(FetchContent)
 FetchContent_Declare(
   nlohmann_json
-  URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.hpp
-  DOWNLOAD_NO_EXTRACT TRUE
+  GIT_REPOSITORY https://github.com/nlohmann/json.git
+  GIT_TAG        v3.11.3
+  GIT_SHALLOW    TRUE
 )
 FetchContent_MakeAvailable(nlohmann_json)
-
-# Create a header-only interface target for nlohmann/json
-add_library(nlohmann_json_iface INTERFACE)
-target_include_directories(nlohmann_json_iface INTERFACE
-  ${nlohmann_json_SOURCE_DIR}
-)
 
 # Sources
 set(SOURCES
@@ -48,7 +43,7 @@ target_include_directories(hnxfmradiod PRIVATE
 
 target_link_libraries(hnxfmradiod PRIVATE
   ${ALSA_LIBRARIES}
-  nlohmann_json_iface
+  nlohmann_json::nlohmann_json
   pthread
 )
 

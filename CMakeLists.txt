@@ -10,9 +10,6 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
-# ALSA
-find_package(ALSA REQUIRED)
-
 # nlohmann/json (header-only)
 include(FetchContent)
 FetchContent_Declare(
@@ -38,11 +35,9 @@ add_executable(hnxfmradiod ${SOURCES})
 
 target_include_directories(hnxfmradiod PRIVATE
   ${CMAKE_SOURCE_DIR}/src
-  ${ALSA_INCLUDE_DIRS}
 )
 
 target_link_libraries(hnxfmradiod PRIVATE
-  ${ALSA_LIBRARIES}
   nlohmann_json::nlohmann_json
   pthread
 )

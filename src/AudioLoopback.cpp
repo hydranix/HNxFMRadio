@@ -4,133 +4,176 @@
 #include <cstring>
 #include <cstdlib>
 #include <chrono>
+#include <thread>
+#include <filesystem>
+#include <unistd.h>
+#include <signal.h>
+#include <sys/wait.h>
+
+namespace fs = std::filesystem;
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-static bool modprobeLoopback() {
-    int ret = std::system("modprobe snd-aloop 2>/dev/null");
-    return ret == 0;
+static bool modprobeLoopback()
+{
+	int ret = std::system("modprobe snd-aloop 2>/dev/null");
+	return ret == 0;
 }
 
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
-AudioLoopback::~AudioLoopback() {
-    stop();
+AudioLoopback::~AudioLoopback()
+{
+	stop();
 }
 
-bool AudioLoopback::start(const std::string& device, int sampleRate, int channels) {
-    sampleRate_ = sampleRate;
-    channels_   = channels;
+bool AudioLoopback::start(const std::string& device, int sampleRate, int channels)
+{
+	sampleRate_ = sampleRate;
+	channels_ = channels;
 
-    if (!modprobeLoopback())
-        Logger::warn("modprobe snd-aloop failed — module may already be loaded");
+	if (fs::exists("/sys/module/snd_aloop"))
+		if (!modprobeLoopback())
+		{
+			Logger::error("modprobe snd-aloop failed — module may already be loaded or unavailable");
+			return false;
+		}
 
-    // Open PCM for playback on the loopback device
-    std::string playback = device + ",0";  // e.g. hw:Loopback,0
-    int err = snd_pcm_open(&pcm_, playback.c_str(), SND_PCM_STREAM_PLAYBACK, 0);
-    if (err < 0) {
-        Logger::error("snd_pcm_open(" + playback + "): " + snd_strerror(err));
-        return false;
-    }
+	// Build aplay device string: e.g. "hw:Loopback,0"
+	std::string playback = device + ",0";
 
-    snd_pcm_hw_params_t* params = nullptr;
-    snd_pcm_hw_params_alloca(&params);
-    snd_pcm_hw_params_any(pcm_, params);
-    snd_pcm_hw_params_set_access(pcm_, params, SND_PCM_ACCESS_RW_INTERLEAVED);
-    snd_pcm_hw_params_set_format(pcm_, params, SND_PCM_FORMAT_S16_LE);
-    snd_pcm_hw_params_set_channels(pcm_, params, (unsigned)channels_);
+	// Create a pipe for aplay's stdin
+	int pipefd[2];
+	if (pipe(pipefd) < 0)
+	{
+		Logger::error("AudioLoopback: pipe(): " + std::string(strerror(errno)));
+		return false;
+	}
 
-    unsigned int rate = (unsigned)sampleRate_;
-    snd_pcm_hw_params_set_rate_near(pcm_, params, &rate, nullptr);
+	pid_t pid = fork();
+	if (pid < 0)
+	{
+		Logger::error("AudioLoopback: fork(aplay): " + std::string(strerror(errno)));
+		close(pipefd[0]);
+		close(pipefd[1]);
+		return false;
+	}
 
-    snd_pcm_uframes_t frames = 512;
-    snd_pcm_hw_params_set_period_size_near(pcm_, params, &frames, nullptr);
+	if (pid == 0)
+	{
+		// Child: aplay reads from stdin
+		dup2(pipefd[0], STDIN_FILENO);
+		close(pipefd[0]);
+		close(pipefd[1]);
 
-    err = snd_pcm_hw_params(pcm_, params);
-    if (err < 0) {
-        Logger::error("snd_pcm_hw_params: " + std::string(snd_strerror(err)));
-        snd_pcm_close(pcm_);
-        pcm_ = nullptr;
-        return false;
-    }
+		std::string srStr = std::to_string(sampleRate);
+		std::string chStr = std::to_string(channels);
 
-    running_ = true;
-    silenceThread_ = std::thread(&AudioLoopback::silenceThread, this);
-    Logger::info("AudioLoopback started on " + playback);
-    return true;
+		execlp("aplay", "aplay",
+				 "-D", playback.c_str(),
+				 "-f", "S16_LE",
+				 "-r", srStr.c_str(),
+				 "-c", chStr.c_str(),
+				 "-t", "raw",
+				 "--buffer-size", "8192",
+				 "-", (char*)nullptr);
+		_exit(127);
+	}
+
+	// Parent: keep write end, close read end
+	close(pipefd[0]);
+	aplayFd_ = pipefd[1];
+	aplayPid_ = pid;
+
+	running_ = true;
+	silenceThread_ = std::thread(&AudioLoopback::silenceThread, this);
+	Logger::info("AudioLoopback started (aplay on " + playback + ")");
+	return true;
 }
 
-void AudioLoopback::stop() {
-    running_ = false;
-    injecting_ = false;
-    injectCV_.notify_all();
+void AudioLoopback::stop()
+{
+	running_ = false;
+	injecting_ = false;
+	injectCV_.notify_all();
 
-    if (silenceThread_.joinable())
-        silenceThread_.join();
+	if (silenceThread_.joinable())
+		silenceThread_.join();
 
-    if (pcm_) {
-        snd_pcm_drain(pcm_);
-        snd_pcm_close(pcm_);
-        pcm_ = nullptr;
-    }
+	if (aplayFd_ >= 0)
+	{
+		close(aplayFd_);
+		aplayFd_ = -1;
+	}
+
+	if (aplayPid_ > 0)
+	{
+		kill(aplayPid_, SIGTERM);
+		waitpid(aplayPid_, nullptr, 0);
+		aplayPid_ = -1;
+	}
 }
 
-void AudioLoopback::injectAudio(const int16_t* frames, size_t frameCount) {
-    std::unique_lock<std::mutex> lk(injectMutex_);
-    injecting_ = true;
-    lk.unlock();
+void AudioLoopback::injectAudio(const int16_t* frames, size_t frameCount)
+{
+	std::unique_lock<std::mutex> lk(injectMutex_);
+	injecting_ = true;
+	lk.unlock();
 
-    writePCM(frames, frameCount);
+	writePipe(frames, frameCount * (size_t)channels_ * sizeof(int16_t));
 }
 
-void AudioLoopback::endInjection() {
-    std::unique_lock<std::mutex> lk(injectMutex_);
-    injecting_ = false;
-    lk.unlock();
-    injectCV_.notify_all();
+void AudioLoopback::endInjection()
+{
+	std::unique_lock<std::mutex> lk(injectMutex_);
+	injecting_ = false;
+	lk.unlock();
+	injectCV_.notify_all();
 }
 
 // ---------------------------------------------------------------------------
 // Private
 // ---------------------------------------------------------------------------
 
-void AudioLoopback::silenceThread() {
-    // One period worth of silence
-    const snd_pcm_uframes_t periodFrames = 512;
-    std::vector<int16_t> silence(periodFrames * (size_t)channels_, 0);
+void AudioLoopback::silenceThread()
+{
+	// One period worth of silence
+	const size_t periodFrames = 512;
+	std::vector<int16_t> silence(periodFrames * (size_t)channels_, 0);
+	const size_t silenceBytes = silence.size() * sizeof(int16_t);
 
-    while (running_) {
-        {
-            std::unique_lock<std::mutex> lk(injectMutex_);
-            injectCV_.wait(lk, [this]{ return !injecting_ || !running_; });
-        }
-        if (!running_) break;
-        writePCM(silence.data(), periodFrames);
-    }
+	while (running_)
+	{
+		{
+			std::unique_lock<std::mutex> lk(injectMutex_);
+			injectCV_.wait(lk, [this] { return !injecting_ || !running_; });
+		}
+		if (!running_) break;
+		writePipe(silence.data(), silenceBytes);
+	}
 }
 
-bool AudioLoopback::writePCM(const int16_t* frames, size_t frameCount) {
-    if (!pcm_) return false;
+bool AudioLoopback::writePipe(const void* data, size_t bytes)
+{
+	if (aplayFd_ < 0) return false;
 
-    size_t written = 0;
-    while (written < frameCount) {
-        snd_pcm_sframes_t ret = snd_pcm_writei(pcm_, frames + written * channels_,
-                                                frameCount - written);
-        if (ret == -EPIPE) {
-            snd_pcm_prepare(pcm_);
-        } else if (ret < 0) {
-            ret = snd_pcm_recover(pcm_, (int)ret, 0);
-            if (ret < 0) {
-                Logger::error("snd_pcm_writei recover: " + std::string(snd_strerror((int)ret)));
-                return false;
-            }
-        } else {
-            written += (size_t)ret;
-        }
-    }
-    return true;
+	const char* ptr = static_cast<const char*>(data);
+	size_t written = 0;
+	while (written < bytes)
+	{
+		ssize_t w = write(aplayFd_, ptr + written, bytes - written);
+		if (w <= 0)
+		{
+			if (w < 0 && errno == EINTR) continue;
+			Logger::error("AudioLoopback: write to aplay pipe failed: " +
+							std::string(strerror(errno)));
+			return false;
+		}
+		written += (size_t)w;
+	}
+	return true;
 }

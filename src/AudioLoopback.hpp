@@ -5,18 +5,19 @@
 #include <condition_variable>
 #include <vector>
 #include <string>
-#include <alsa/asoundlib.h>
+#include <cstdint>
+#include <sys/types.h>
 
 class AudioLoopback {
 public:
     AudioLoopback() = default;
     ~AudioLoopback();
 
-    // Initialize loopback module and open ALSA PCM handle
+    // Start aplay on the loopback device and feed it silence when idle
     bool start(const std::string& device, int sampleRate, int channels);
     void stop();
 
-    // Feed raw s16le PCM frames into the loopback (called by AudioInjector).
+    // Feed raw s16le PCM frames into aplay (called by AudioInjector).
     // Blocks until all frames are written. Thread-safe.
     void injectAudio(const int16_t* frames, size_t frameCount);
 
@@ -27,15 +28,16 @@ public:
 
 private:
     void silenceThread();
-    bool writePCM(const int16_t* frames, size_t frameCount);
+    bool writePipe(const void* data, size_t bytes);
 
-    snd_pcm_t*  pcm_          = nullptr;
-    int         sampleRate_   = 22050;
-    int         channels_     = 1;
-    std::atomic<bool> running_{false};
-    std::atomic<bool> injecting_{false};
+    int         aplayFd_ = -1;      // stdin pipe to aplay
+    pid_t       aplayPid_ = -1;
+    int         sampleRate_ = 22050;
+    int         channels_ = 1;
+    std::atomic<bool> running_{ false };
+    std::atomic<bool> injecting_{ false };
 
-    std::thread           silenceThread_;
-    std::mutex            injectMutex_;
+    std::thread             silenceThread_;
+    std::mutex              injectMutex_;
     std::condition_variable injectCV_;
 };

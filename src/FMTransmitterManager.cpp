@@ -97,7 +97,6 @@ void FMTransmitterManager::launchPipeline()
             "-f", "S16_LE",
             "-r", srStr.c_str(),
             "-c", chStr.c_str(),
-            "-t", "raw",
             nullptr
         };
         execvp(arecordPath_.c_str(), const_cast<char* const*>(argv));

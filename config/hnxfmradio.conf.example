@@ -4,26 +4,42 @@
 ; Lines starting with ; are comments.
 ; Copy this file to /etc/hnxfmradio.conf and adjust as needed.
 
+
 [radio]
 ; FM broadcast frequency in MHz (87.5 – 108.0)
-frequency=100.6
+; other frequencies do work but be careful
+frequency=106.1
+
 
 [audio]
 ; PCM sample rate in Hz (fm_transmitter works best at 22050)
 sample_rate=22050
+
 ; Number of audio channels (1 = mono, 2 = stereo)
+; Currently only mono is supported
 channels=1
+
 ; Port for the HTTP configuration web interface
 http_port=8080
+
 ; TCP port for audio injection (send any audio format ffmpeg understands)
 audio_port=8081
+
 
 [paths]
 ; Path to the fm_transmitter binary
 fm_transmitter=/usr/local/bin/fm_transmitter
+
 ; Path to arecord (part of alsa-utils)
 arecord=/usr/bin/arecord
+
 ; Path to ffmpeg
 ffmpeg=/usr/bin/ffmpeg
+
+
 ; ALSA loopback device base name (do not include subdevice suffix)
-loopback_device=hw:Loopback
+; Use the named device bu default
+loopback_device=hw:Loopback 
+
+; If you only get silence on the loopback device try this instead
+;loopback_device=hw:0,1

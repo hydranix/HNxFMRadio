@@ -1,6 +1,5 @@
 #include "Config.hpp"
 #include "Logger.hpp"
-#include "AudioLoopback.hpp"
 #include "FMTransmitterManager.hpp"
 #include "AudioInjector.hpp"
 #include "HttpServer.hpp"
@@ -60,14 +59,6 @@ int main(int argc, char* argv[])
 
     auto rc = cfg.get();
 
-    // ---------- Audio Loopback ----------
-    AudioLoopback loopback;
-    if (!loopback.start(rc.loopback_device, rc.sample_rate, rc.channels))
-    {
-        Logger::error("Failed to start AudioLoopback — aborting");
-        return 1;
-    }
-
     // ---------- FM Transmitter ----------
     FMTransmitterManager fm;
     if (!fm.start(rc.fm_transmitter_path,
@@ -78,17 +69,16 @@ int main(int argc, char* argv[])
                   rc.channels))
     {
         Logger::error("Failed to start FMTransmitterManager — aborting");
-        loopback.stop();
         return 1;
     }
 
     // ---------- Audio Injector ----------
-    AudioInjector injector(loopback);
-    if (!injector.start(rc.ffmpeg_path, rc.audio_port, rc.sample_rate, rc.channels))
+    AudioInjector injector;
+    if (!injector.start(rc.ffmpeg_path, rc.audio_port,
+                        rc.loopback_device, rc.sample_rate, rc.channels))
     {
         Logger::error("Failed to start AudioInjector — aborting");
         fm.stop();
-        loopback.stop();
         return 1;
     }
 
@@ -99,7 +89,6 @@ int main(int argc, char* argv[])
         Logger::error("Failed to start HttpServer — aborting");
         injector.stop();
         fm.stop();
-        loopback.stop();
         return 1;
     }
 
@@ -118,7 +107,6 @@ int main(int argc, char* argv[])
     http.stop();
     injector.stop();
     fm.stop();
-    loopback.stop();
     Logger::info("hnxfmradiod stopped");
     return 0;
 }

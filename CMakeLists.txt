@@ -25,7 +25,6 @@ set(SOURCES
   src/main.cpp
   src/Config.cpp
   src/Logger.cpp
-  src/AudioLoopback.cpp
   src/FMTransmitterManager.cpp
   src/AudioInjector.cpp
   src/HttpServer.cpp

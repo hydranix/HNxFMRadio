@@ -12,6 +12,8 @@ struct RadioConfig {
     std::string arecord_path = "/usr/bin/arecord";
     std::string ffmpeg_path = "/usr/bin/ffmpeg";
     std::string loopback_device = "hw:Loopback";
+    int         pipeline_restart_base_ms = 1800000;  // 30 minutes in milliseconds
+    int         pipeline_restart_randomness_ms = 0;   // additional random milliseconds
 };
 
 class Config {

@@ -1,0 +1,17 @@
+[Unit]
+Description=HNx FM Radio Audio Transcoding Service
+Documentation=https://github.com/hydranix/HNxFMRadio
+After=hnxfmradiod.service
+PartOf=hnxfmradiod.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/socat TCP-LISTEN:21100,reuseaddr,fork EXEC:"/usr/local/bin/TranscodeToLoopback"
+Restart=on-failure
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=hnxfmradio-transcode
+
+[Install]
+WantedBy=hnxfmradiod.service

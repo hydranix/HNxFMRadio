@@ -21,16 +21,16 @@ install_deps() {
     if command -v apt-get &>/dev/null; then
         info "Installing dependencies via apt..."
         apt-get update -qq
-        apt-get install -y -qq cmake g++ libasound2-dev alsa-utils ffmpeg
+        apt-get install -y -qq cmake g++ libasound2-dev alsa-utils ffmpeg socat
     elif command -v pacman &>/dev/null; then
         info "Installing dependencies via pacman..."
-        pacman -Sy --needed --noconfirm cmake gcc alsa-lib alsa-utils ffmpeg
+        pacman -Sy --needed --noconfirm cmake gcc alsa-lib alsa-utils ffmpeg socat
     elif command -v dnf &>/dev/null; then
         info "Installing dependencies via dnf..."
-        dnf install -y cmake gcc-c++ alsa-lib-devel alsa-utils ffmpeg
+        dnf install -y cmake gcc-c++ alsa-lib-devel alsa-utils ffmpeg socat
     else
         warn "Unrecognized package manager. Please install manually:"
-        warn "  cmake, g++ (C++17), libasound2-dev/alsa-lib, alsa-utils, ffmpeg"
+        warn "  cmake, g++ (C++17), libasound2-dev/alsa-lib, alsa-utils, ffmpeg, socat"
     fi
 }
 
@@ -61,9 +61,10 @@ install_files() {
 
 enable_service() {
     if command -v systemctl &>/dev/null; then
-        info "Reloading systemd and enabling $SERVICE_NAME..."
+        info "Reloading systemd and enabling $SERVICE_NAME and transcode service..."
         systemctl daemon-reload
         systemctl enable --now "$SERVICE_NAME"
+        systemctl enable hnxfmradio-transcode
         info "Service status:"
         systemctl --no-pager status "$SERVICE_NAME" || true
     else

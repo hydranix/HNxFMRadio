@@ -23,7 +23,9 @@ bool FMTransmitterManager::start(const std::string& fmPath,
                                   const std::string& loopbackDevice,
                                   double frequency,
                                   int    sampleRate,
-                                  int    channels)
+                                  int    channels,
+                                  int    restartBaseMs,
+                                  int    restartRandomnessMs)
 {
     fmPath_ = fmPath;
     arecordPath_ = arecordPath;
@@ -31,6 +33,8 @@ bool FMTransmitterManager::start(const std::string& fmPath,
     frequency_ = frequency;
     sampleRate_ = sampleRate;
     channels_ = channels;
+    restartBaseMs_ = restartBaseMs;
+    restartRandomnessMs_ = restartRandomnessMs;
 
     running_ = true;
     launchPipeline();
@@ -87,7 +91,7 @@ void FMTransmitterManager::launchPipeline()
         close(pipefd_[0]);
         close(pipefd_[1]);
 
-        std::string captureDevice = loopbackDevice_ + ",0"; // capture side
+        std::string captureDevice = +",0"; // capture side
         std::string srStr = std::to_string(sampleRate_);
         std::string chStr = std::to_string(channels_);
 
@@ -172,14 +176,24 @@ void FMTransmitterManager::killPipeline()
 
 void FMTransmitterManager::restartTimerThread()
 {
+    std::mt19937 rng(std::random_device{}());
+    std::uniform_int_distribution<int> dist(0, restartRandomnessMs_);
+
     while (running_)
     {
-// Wait 30 minutes (or until stopped)
+        // Calculate the actual wait time: base + random component
+        int actualWaitMs = restartBaseMs_;
+        if (restartRandomnessMs_ > 0)
+        {
+            actualWaitMs += dist(rng);
+        }
+
+        // Wait for the calculated duration (or until stopped)
         std::unique_lock<std::mutex> lk(mutex_);
-        cv_.wait_for(lk, std::chrono::minutes(30), [this] { return !running_; });
+        cv_.wait_for(lk, std::chrono::milliseconds(actualWaitMs), [this] { return !running_; });
         if (!running_) break;
 
-        Logger::info("30-minute restart: cycling fm_transmitter pipeline");
+        Logger::info("Pipeline restart timer fired: cycling fm_transmitter pipeline");
         killPipeline();
         launchPipeline();
     }

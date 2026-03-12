@@ -66,7 +66,9 @@ int main(int argc, char* argv[])
                   rc.loopback_device,
                   rc.frequency,
                   rc.sample_rate,
-                  rc.channels))
+                  rc.channels,
+                  rc.pipeline_restart_base_ms,
+                  rc.pipeline_restart_randomness_ms))
     {
         Logger::error("Failed to start FMTransmitterManager — aborting");
         return 1;

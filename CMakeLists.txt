@@ -48,4 +48,5 @@ target_compile_options(hnxfmradiod PRIVATE
 
 install(TARGETS hnxfmradiod DESTINATION /usr/local/bin)
 install(FILES systemd/hnxfmradiod.service DESTINATION /etc/systemd/system)
+install(FILES systemd/hnxfmradio-transcode.service DESTINATION /etc/systemd/system)
 install(FILES config/hnxfmradio.conf.example DESTINATION /etc)

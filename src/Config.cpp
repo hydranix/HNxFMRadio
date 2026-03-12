@@ -132,6 +132,22 @@ void Config::parse(const std::string& content)
       else if (key == "ffmpeg")          cfg_.ffmpeg_path = value;
       else if (key == "loopback_device") cfg_.loopback_device = value;
     }
+    else if (section == "pipeline")
+    {
+      try
+      {
+        if (key == "restart_base_ms") cfg_.pipeline_restart_base_ms = std::stoi(value);
+        else if (key == "restart_randomness_ms") cfg_.pipeline_restart_randomness_ms = std::stoi(value);
+      }
+      catch (const std::invalid_argument&)
+      {
+        // Ignore malformed integer value and keep existing/default
+      }
+      catch (const std::out_of_range&)
+      {
+        // Ignore out-of-range integer value and keep existing/default
+      }
+    }
   }
 }
 
@@ -151,6 +167,10 @@ std::string Config::serialize() const
     << "fm_transmitter=" << cfg_.fm_transmitter_path << "\n"
     << "arecord=" << cfg_.arecord_path << "\n"
     << "ffmpeg=" << cfg_.ffmpeg_path << "\n"
-    << "loopback_device=" << cfg_.loopback_device << "\n";
+    << "loopback_device=" << cfg_.loopback_device << "\n"
+    << "\n"
+    << "[pipeline]\n"
+    << "restart_base_ms=" << cfg_.pipeline_restart_base_ms << "\n"
+    << "restart_randomness_ms=" << cfg_.pipeline_restart_randomness_ms << "\n";
   return ss.str();
 }

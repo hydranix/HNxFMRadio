@@ -4,6 +4,7 @@
 #include <atomic>
 #include <mutex>
 #include <condition_variable>
+#include <random>
 
 class FMTransmitterManager {
 public:
@@ -16,7 +17,9 @@ public:
                const std::string& loopbackDevice,
                double frequency,
                int    sampleRate,
-               int    channels);
+               int    channels,
+               int    restartBaseMs = 1800000,
+               int    restartRandomnessMs = 0);
     void stop();
 
     // Restart the pipeline with new frequency (e.g. after config change)
@@ -36,6 +39,8 @@ private:
     double      frequency_ = 100.6;
     int         sampleRate_ = 22050;
     int         channels_ = 1;
+    int         restartBaseMs_ = 1800000;        // 30 minutes in milliseconds
+    int         restartRandomnessMs_ = 0;         // additional random milliseconds
 
     // PIDs of spawned processes
     pid_t arecordPid_ = -1;

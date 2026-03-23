@@ -91,7 +91,7 @@ void FMTransmitterManager::launchPipeline()
         close(pipefd_[0]);
         close(pipefd_[1]);
 
-        std::string captureDevice = +",0"; // capture side
+        std::string captureDevice = loopbackDevice_ + ",0"; // capture side
         std::string srStr = std::to_string(sampleRate_);
         std::string chStr = std::to_string(channels_);
 

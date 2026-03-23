@@ -33,19 +33,19 @@ private:
     void restartTimerThread();
     void watcherThread();
 
-    std::string fmPath_;
-    std::string arecordPath_;
-    std::string loopbackDevice_;
-    double      frequency_ = 100.6;
-    int         sampleRate_ = 22050;
-    int         channels_ = 1;
-    int         restartBaseMs_ = 1800000;        // 30 minutes in milliseconds
-    int         restartRandomnessMs_ = 0;         // additional random milliseconds
+    std::string fmPath_{ "fm_transmitter" };
+    std::string arecordPath_{ "arecord" };
+    std::string loopbackDevice_{ "hw:Loopback" };
+    double      frequency_{ 100.6 };
+    int         sampleRate_{ 22050 };
+    int         channels_{ 1 };
+    int         restartBaseMs_{ 1800000 };        // 30 minutes in milliseconds
+    int         restartRandomnessMs_{ 0 };         // additional random milliseconds
 
-    // PIDs of spawned processes
-    pid_t arecordPid_ = -1;
-    pid_t fmPid_ = -1;
-    int   pipefd_[2] = { -1, -1 }; // arecord→fm_transmitter pipe
+    // PIDs of spawned processes}
+    pid_t arecordPid_{ -1 };
+    pid_t fmPid_{ -1 };
+    int   pipefd_[2]{ -1, -1 }; // arecord→fm_transmitter pipe
 
     std::atomic<bool> running_{ false };
     std::mutex        mutex_;

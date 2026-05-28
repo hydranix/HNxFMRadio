@@ -18,7 +18,7 @@ public:
                double frequency,
                int    sampleRate,
                int    channels,
-               int    restartBaseMs = 1800000,
+               int    restartBaseMs = 10800000,
                int    restartRandomnessMs = 0);
     void stop();
 

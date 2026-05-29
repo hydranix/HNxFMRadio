@@ -42,7 +42,7 @@ private:
     int         restartBaseMs_{ 1800000 };        // 30 minutes in milliseconds
     int         restartRandomnessMs_{ 0 };         // additional random milliseconds
 
-    // PIDs of spawned processes}
+    // PIDs of spawned processes
     pid_t arecordPid_{ -1 };
     pid_t fmPid_{ -1 };
     int   pipefd_[2]{ -1, -1 }; // arecord→fm_transmitter pipe

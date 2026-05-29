@@ -27,6 +27,7 @@ set(SOURCES
   src/Logger.cpp
   src/FMTransmitterManager.cpp
   src/AudioInjector.cpp
+  src/StreamPlayer.cpp
   src/HttpServer.cpp
 )
 

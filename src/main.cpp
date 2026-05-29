@@ -2,6 +2,7 @@
 #include "Logger.hpp"
 #include "FMTransmitterManager.hpp"
 #include "AudioInjector.hpp"
+#include "StreamPlayer.hpp"
 #include "HttpServer.hpp"
 
 #include <csignal>
@@ -84,8 +85,11 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    // ---------- Stream Player ----------
+    StreamPlayer player;
+
     // ---------- HTTP Server ----------
-    HttpServer http(cfg, fm);
+    HttpServer http(cfg, fm, player);
     if (!http.start(rc.http_port))
     {
         Logger::error("Failed to start HttpServer — aborting");
@@ -107,6 +111,7 @@ int main(int argc, char* argv[])
     // ---------- Graceful shutdown (reverse order) ----------
     Logger::info("Shutting down…");
     http.stop();
+    player.stop();
     injector.stop();
     fm.stop();
     Logger::info("hnxfmradiod stopped");

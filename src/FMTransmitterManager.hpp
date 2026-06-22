@@ -18,7 +18,7 @@ public:
                double frequency,
                int    sampleRate,
                int    channels,
-               int    restartBaseMs = 1800000,
+               int    restartBaseMs = 10800000,
                int    restartRandomnessMs = 0);
     void stop();
 
@@ -39,7 +39,7 @@ private:
     double      frequency_{ 100.6 };
     int         sampleRate_{ 22050 };
     int         channels_{ 1 };
-    int         restartBaseMs_{ 1800000 };        // 30 minutes in milliseconds
+    int         restartBaseMs_{ 10800000 };        // 3 hours in milliseconds
     int         restartRandomnessMs_{ 0 };         // additional random milliseconds
 
     // PIDs of spawned processes
